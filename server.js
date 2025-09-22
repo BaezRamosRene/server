@@ -1,27 +1,24 @@
 // server.js
-// Servidor Express + almacenamiento en JSON (sin base de datos).
-// Sirve la web y expone la API para totales y votos.
-const express = require('express');
-const cors = require('cors');
-// ...
-app.use(cors());        // <— agregar
-app.use(express.json());
-// app.use(express.static(PUBLIC_DIR)); // opcional si servís el HTML desde el mismo Render
-
-
+// API de votos globales (Express). Guarda en poll_totals.json.
+// (Opcional) sirve el frontend desde /public si existe.
 
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const cors = require('cors');
 
 const app = express();
+app.use(cors());        // permitir llamadas desde GitHub Pages u otros orígenes
 app.use(express.json());
 
-// === Static ===
+// === (opcional) servir frontend si subís /public junto al server ===
 const PUBLIC_DIR = path.join(__dirname, 'public');
-app.use(express.static(PUBLIC_DIR));
+if (fs.existsSync(PUBLIC_DIR)) {
+  app.use(express.static(PUBLIC_DIR));
+  app.get('/', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
+}
 
-// === Datos (JSON simple) ===
+// === Persistencia simple (archivo JSON) ===
 const DATA_FILE = path.join(__dirname, 'poll_totals.json');
 const DEFAULT_TOTALS = { op1: 0, op2: 0, op3: 0, op4: 0 };
 
@@ -35,12 +32,11 @@ function readTotals() {
   try {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
     const obj = JSON.parse(raw);
-    // asegurar todas las claves
     for (const k of Object.keys(DEFAULT_TOTALS)) {
       if (typeof obj[k] !== 'number') obj[k] = 0;
     }
     return obj;
-  } catch (e) {
+  } catch {
     return { ...DEFAULT_TOTALS };
   }
 }
@@ -50,8 +46,7 @@ function writeTotals(totals) {
 
 // === API ===
 app.get('/api/poll/totals', (req, res) => {
-  const totals = readTotals();
-  res.json(totals);
+  res.json(readTotals());
 });
 
 app.post('/api/poll/vote', (req, res) => {
@@ -68,6 +63,5 @@ app.post('/api/poll/vote', (req, res) => {
 // === Lanzar ===
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`   Abrí esa URL en tu navegador.`);
+  console.log(`✅ API lista en http://localhost:${PORT}`);
 });
