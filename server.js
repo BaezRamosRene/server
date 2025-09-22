@@ -28,4 +28,40 @@ function ensureDataFile() {
   }
 }
 function readTotals() {
-  ensure
+  ensureDataFile();
+  try {
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const obj = JSON.parse(raw);
+    for (const k of Object.keys(DEFAULT_TOTALS)) {
+      if (typeof obj[k] !== 'number') obj[k] = 0;
+    }
+    return obj;
+  } catch {
+    return { ...DEFAULT_TOTALS };
+  }
+}
+function writeTotals(totals) {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(totals, null, 2));
+}
+
+// === API ===
+app.get('/api/poll/totals', (req, res) => {
+  res.json(readTotals());
+});
+
+app.post('/api/poll/vote', (req, res) => {
+  const { optionId } = req.body || {};
+  if (!['op1','op2','op3','op4'].includes(optionId)) {
+    return res.status(400).json({ error: 'optionId inválido' });
+  }
+  const totals = readTotals();
+  totals[optionId] = (totals[optionId] || 0) + 1;
+  writeTotals(totals);
+  res.json({ ok: true, totals });
+});
+
+// === Lanzar ===
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ API lista en http://localhost:${PORT}`);
+});
